@@ -1,0 +1,78 @@
+# Байткод Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Дистрибутивы и сборки
+dist/
+build/
+*.egg-info/
+
+# Виртуальное окружение
+venv/
+env/
+ENV/
+.env
+.venv
+
+# Файлы настроек и окружения
+*.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Файлы логов
+*.log
+logs/
+
+# Локальные файлы базы данных
+*.db
+*.sqlite3
+
+# Файлы с тестовым покрытием
+.coverage
+htmlcov/
+.tox/
+.pytest_cache/
+.coverage.*
+coverage.xml
+*.cover
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Папки с документацией
+docs/_build/
+
+# Локальные файлы разработки
+local_settings.py
+*.bak
+*.tmp
+*.temp 
+
+settings.env
+ipinfo_cache.gz
+ipinfo_cache
+.cache
+config.toml
+networks.txt
+optimized_networks.txt
+routes.txt
+cidr.txt
+splitroute
+ipinfo.py
+generate_rules.py
+requirements.txt
+settings.example
+

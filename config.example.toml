@@ -1,0 +1,14 @@
+[api]
+token = "your_ipinfo_token_here"
+
+[files]
+org_list         = "orglist.txt"
+networks_output  = "networks.txt"
+optimized_output = "optimized_networks.txt"
+routes_output    = "routes.txt"
+cidr_output      = "cidr.txt"
+
+[routing]
+gateway_ip   = "192.168.99.1"
+gateway_name = "OpenConnect0"
+route_type   = "auto reject"

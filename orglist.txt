@@ -1,0 +1,15 @@
+telegram.org
+google.com
+microsoft.com
+cloudflare.com
+oracle.com
+intel.com
+facebook.com
+amazon.com
+phaselayer.com
+quad9.net
+apnic.net
+qrator.net
+v-sys.org
+akamai.com
+apple.com
