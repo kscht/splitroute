@@ -57,7 +57,8 @@ cloudflare.com
 ./splitroute fetch     # скачать базу, извлечь CIDRs организаций
 ./splitroute optimize  # оптимизировать (объединить и расширить блоки)
 ./splitroute routes    # сгенерировать маршруты
-./splitroute validate  # проверить корректность оптимизации
+./splitroute validate      # проверить корректность оптимизации
+./splitroute lookup <ip>   # проверить, попадает ли IP в маршруты
 ```
 
 ### Результат
@@ -73,6 +74,18 @@ cloudflare.com
 ```
 ip route 1.0.0.0 255.192.0.0 192.168.99.1 OpenConnect0 auto reject
 ```
+
+### Проверка IP
+
+```
+$ splitroute lookup 8.8.8.8
+HIT  8.8.8.8  →  8.0.0.0/10
+
+$ splitroute lookup 1.2.3.4
+MISS 1.2.3.4
+```
+
+Команда читает локальный `optimized_networks.txt` и отвечает, через какой маршрут пойдёт адрес, или `MISS` если он не охвачен.
 
 ## Логика оптимизации
 
