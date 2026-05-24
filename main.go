@@ -41,7 +41,7 @@ func loadConfig(path string) (*Config, error) {
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: splitroute <fetch|optimize|routes|validate|all>")
+		fmt.Fprintln(os.Stderr, "usage: splitroute <fetch|optimize|routes|validate|all|lookup <ip>>")
 		os.Exit(1)
 	}
 
@@ -61,6 +61,12 @@ func main() {
 		err = cmdRoutes(cfg)
 	case "validate":
 		err = cmdValidate(cfg)
+	case "lookup":
+		if len(os.Args) < 3 {
+			fmt.Fprintln(os.Stderr, "usage: splitroute lookup <ip>")
+			os.Exit(1)
+		}
+		err = cmdLookup(cfg, os.Args[2])
 	case "all":
 		for _, fn := range []func(*Config) error{cmdFetch, cmdOptimize, cmdRoutes} {
 			if err = fn(cfg); err != nil {
