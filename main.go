@@ -68,7 +68,7 @@ func main() {
 		}
 		err = cmdLookup(cfg, os.Args[2])
 	case "all":
-		for _, fn := range []func(*Config) error{cmdFetch, cmdOptimize, cmdRoutes} {
+		for _, fn := range []func(*Config) error{cmdFetch, cmdOptimize, cmdRoutes, cmdValidate} {
 			if err = fn(cfg); err != nil {
 				break
 			}
