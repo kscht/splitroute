@@ -2,8 +2,6 @@ telegram.org
 google.com
 microsoft.com
 cloudflare.com
-oracle.com
-intel.com
 facebook.com
 amazon.com
 phaselayer.com
@@ -13,3 +11,8 @@ qrator.net
 v-sys.org
 akamai.com
 apple.com
+anthropic.com
+github.com
+intel.com
+oracle.com
+hivelocity.net
