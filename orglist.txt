@@ -17,3 +17,4 @@ intel.com
 oracle.com
 hivelocity.net
 fastly.com
+cdn77.com
