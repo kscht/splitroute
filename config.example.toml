@@ -3,10 +3,11 @@ token = "your_ipinfo_token_here"
 
 [files]
 org_list         = "orglist.txt"
-networks_output  = "networks.txt"
-optimized_output = "optimized_networks.txt"
-routes_output    = "routes.txt"
-cidr_output      = "cidr.txt"
+networks_output      = "networks.txt"
+networks_cidr_output = ""                    # чистые CIDRs до оптимизации (пусто — не записывать)
+optimized_output     = "optimized_networks.txt"
+routes_output        = "routes.txt"
+cidr_output          = "cidr.txt"
 
 [routing]
 gateway_ip   = "192.168.99.1"

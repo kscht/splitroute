@@ -18,11 +18,12 @@ type APIConfig struct {
 }
 
 type FilesConfig struct {
-	OrgList   string `toml:"org_list"`
-	Networks  string `toml:"networks_output"`
-	Optimized string `toml:"optimized_output"`
-	Routes    string `toml:"routes_output"`
-	CIDR      string `toml:"cidr_output"`
+	OrgList      string `toml:"org_list"`
+	Networks     string `toml:"networks_output"`
+	NetworksCIDR string `toml:"networks_cidr_output"`
+	Optimized    string `toml:"optimized_output"`
+	Routes       string `toml:"routes_output"`
+	CIDR         string `toml:"cidr_output"`
 }
 
 type RoutingConfig struct {

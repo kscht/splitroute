@@ -30,11 +30,12 @@ cp config.example.toml config.toml
 token = "ваш_токен_ipinfo"
 
 [files]
-org_list         = "orglist.txt"       # список организаций
-networks_output  = "networks.txt"      # найденные CIDRs
-optimized_output = "optimized_networks.txt"
-routes_output    = "routes.txt"        # команды для Keenetic
-cidr_output      = "cidr.txt"          # чистые CIDRs для других систем
+org_list             = "orglist.txt"             # список организаций
+networks_output      = "networks.txt"            # найденные CIDRs (до оптимизации)
+networks_cidr_output = ""                        # то же, отдельным файлом (пусто — не писать)
+optimized_output     = "optimized_networks.txt"
+routes_output        = "routes.txt"              # команды для Keenetic
+cidr_output          = "cidr.txt"               # оптимизированные CIDRs для других систем
 
 [routing]
 gateway_ip   = "192.168.99.1"          # IP шлюза
@@ -65,10 +66,11 @@ cloudflare.com
 
 | Файл | Содержимое |
 |------|-----------|
-| `networks.txt` | все найденные CIDRs организаций |
+| `networks.txt` | все найденные CIDRs организаций (до оптимизации) |
 | `optimized_networks.txt` | оптимизированные CIDRs |
 | `routes.txt` | команды `ip route` для Keenetic CLI |
-| `cidr.txt` | те же CIDRs, один на строку — для iptables, nftables, OpenWRT и др. |
+| `cidr.txt` | оптимизированные CIDRs, один на строку — для iptables, nftables, OpenWRT и др. |
+| `networks_cidr_output` | неоптимизированные CIDRs для других систем (опционально, см. конфиг) |
 
 Пример строки в `routes.txt`:
 ```

@@ -62,6 +62,13 @@ func cmdFetch(cfg *Config) error {
 		return err
 	}
 	log.Printf("saved → %s", cfg.Files.Networks)
+
+	if cfg.Files.NetworksCIDR != "" {
+		if err := writeNets(cfg.Files.NetworksCIDR, orgNets); err != nil {
+			return err
+		}
+		log.Printf("saved CIDRs → %s", cfg.Files.NetworksCIDR)
+	}
 	return nil
 }
 
