@@ -93,10 +93,3 @@ func addrs(nets []netip.Prefix) []netip.Addr {
 	}
 	return a
 }
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}

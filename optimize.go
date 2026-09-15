@@ -73,8 +73,8 @@ func readNets(path string) ([]netip.Prefix, error) {
 			continue
 		}
 		p, err := netip.ParsePrefix(line)
-		if err != nil {
-			continue
+		if err != nil || !p.Addr().Is4() {
+			continue // только IPv4: lastAddr/cidrMask рассчитаны на 32 бита
 		}
 		nets = append(nets, p.Masked())
 	}
@@ -217,11 +217,4 @@ func sortNets(nets []netip.Prefix) {
 		}
 		return nets[i].Bits() < nets[j].Bits()
 	})
-}
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
 }

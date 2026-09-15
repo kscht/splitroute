@@ -20,6 +20,7 @@ const (
 	ruCacheFile = ".cache/ru_networks.txt"
 	cacheTTL    = 24 * time.Hour
 	ipinfoURL   = "https://ipinfo.io/data/free/country_asn.json.gz"
+	httpTimeout = 15 * time.Minute
 )
 
 type ipRecord struct {
@@ -77,6 +78,8 @@ func cacheValid(path string) bool {
 	return err == nil && time.Since(fi.ModTime()) < cacheTTL
 }
 
+// downloadDB скачивает базу во временный файл и переименовывает его только
+// после полной загрузки, чтобы оборванный ответ не остался в кэше как «свежий».
 func downloadDB(token string) error {
 	req, err := http.NewRequest("GET", ipinfoURL, nil)
 	if err != nil {
@@ -84,7 +87,8 @@ func downloadDB(token string) error {
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
 
-	resp, err := http.DefaultClient.Do(req)
+	client := &http.Client{Timeout: httpTimeout}
+	resp, err := client.Do(req)
 	if err != nil {
 		return err
 	}
@@ -94,14 +98,21 @@ func downloadDB(token string) error {
 		return fmt.Errorf("HTTP %d", resp.StatusCode)
 	}
 
-	f, err := os.Create(dbCacheFile)
+	tmp := dbCacheFile + ".tmp"
+	f, err := os.Create(tmp)
 	if err != nil {
 		return err
 	}
-	defer f.Close()
-
-	_, err = io.Copy(f, resp.Body)
-	return err
+	if _, err := io.Copy(f, resp.Body); err != nil {
+		f.Close()
+		os.Remove(tmp)
+		return err
+	}
+	if err := f.Close(); err != nil {
+		os.Remove(tmp)
+		return err
+	}
+	return os.Rename(tmp, dbCacheFile)
 }
 
 func loadOrgList(path string) (map[string]bool, error) {
