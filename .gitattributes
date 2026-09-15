@@ -1,0 +1,3 @@
+# private/ — личные утилиты (адреса узлов, деплой); хранятся в репо зашифрованными через git-crypt
+private/** filter=git-crypt diff=git-crypt
+.gitattributes !filter !diff

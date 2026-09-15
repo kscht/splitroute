@@ -18,7 +18,7 @@ config.example.toml  — шаблон конфига
 orglist.txt          — список доменов организаций (as_domain из ipinfo)
 install.sh           — поставить Go (если нет) и собрать/установить бинарник (Linux)
 Makefile             — build (с vendor) / install
-deploy-orglist.sh    — выкатить orglist.txt на узлы panda/se1/y15 с управляющего хоста
+private/             — личные утилиты (deploy-orglist.sh и т.п.), зашифрованы git-crypt; `git crypt unlock` любым из YubiKey
 vendor/              — вендоренные зависимости, сборка через -mod=vendor
 ```
 
