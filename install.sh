@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-GO_VERSION=1.22.4
+GO_VERSION=1.27.1
 GO_DIR=/usr/local
 
 install_go() {

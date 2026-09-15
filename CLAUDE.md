@@ -8,12 +8,18 @@
 
 ```
 main.go              — CLI-точка входа, загрузка config.toml
-fetch.go             — скачать базу, распарсить JSONL, сохранить CIDRs
+fetch.go             — скачать базу (атомарно, через .tmp), распарсить JSONL, сохранить CIDRs
 optimize.go          — оптимизировать CIDRs без захвата RU-сетей
 routes.go            — сгенерировать маршруты Keenetic + cidr.txt
+validate.go          — проверить: все org-сети покрыты, новых RU-сетей не захвачено
+lookup.go            — найти, каким optimized-CIDR покрыт IP
 config.toml          — конфиг (gitignored, содержит токен)
 config.example.toml  — шаблон конфига
 orglist.txt          — список доменов организаций (as_domain из ipinfo)
+install.sh           — поставить Go (если нет) и собрать/установить бинарник (Linux)
+Makefile             — build (с vendor) / install
+deploy-orglist.sh    — выкатить orglist.txt на узлы panda/se1/y15 с управляющего хоста
+vendor/              — вендоренные зависимости, сборка через -mod=vendor
 ```
 
 Промежуточные файлы в `.cache/` (gitignored):
@@ -24,11 +30,15 @@ orglist.txt          — список доменов организаций (as_
 
 ```bash
 go build -o splitroute .
-./splitroute all       # fetch → optimize → routes
-./splitroute fetch     # скачать базу, распарсить
-./splitroute optimize  # оптимизировать CIDRs
-./splitroute routes    # сгенерировать маршруты
+./splitroute all          # fetch → optimize → routes → validate
+./splitroute fetch        # скачать базу, распарсить
+./splitroute optimize     # оптимизировать CIDRs
+./splitroute routes       # сгенерировать маршруты
+./splitroute validate     # проверить результат оптимизации
+./splitroute lookup <ip>  # каким CIDR покрыт адрес
 ```
+
+Только IPv4: IPv6-записи отбрасываются при парсинге базы и при чтении списков.
 
 ## Архитектура `optimize.go`
 
@@ -64,11 +74,12 @@ ip route 1.0.0.0 255.192.0.0 192.168.99.1 OpenConnect0 auto reject
 token = "..."
 
 [files]
-org_list         = "orglist.txt"
-networks_output  = "networks.txt"
-optimized_output = "optimized_networks.txt"
-routes_output    = "routes.txt"
-cidr_output      = "cidr.txt"      # пусто — не записывать
+org_list             = "orglist.txt"
+networks_output      = "networks.txt"
+networks_cidr_output = ""          # сырые CIDRs до оптимизации; пусто — не записывать
+optimized_output     = "optimized_networks.txt"
+routes_output        = "routes.txt"
+cidr_output          = "cidr.txt"  # пусто — не записывать
 
 [routing]
 gateway_ip   = "192.168.99.1"
