@@ -18,3 +18,4 @@ oracle.com
 hivelocity.net
 fastly.com
 cdn77.com
+valvesoftware.com
