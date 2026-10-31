@@ -215,6 +215,41 @@ func newProtectedMerge(a, b, sup netip.Prefix, protected []netip.Prefix) bool {
 	return false
 }
 
+// subtractNets вырезает из nets адреса ex: сеть целиком внутри исключения — выбрасывается, исключение внутри
+// сети — сеть делится пополам, пока куски не перестанут пересекаться с исключениями.
+func subtractNets(nets, ex []netip.Prefix) []netip.Prefix {
+	if len(ex) == 0 {
+		return nets
+	}
+	var out []netip.Prefix
+	var cut func(p netip.Prefix)
+	cut = func(p netip.Prefix) {
+		hit := false
+		for _, e := range ex {
+			if !p.Overlaps(e) {
+				continue
+			}
+			if subnetOf(p, e) {
+				return // весь кусок исключён
+			}
+			hit = true
+		}
+		if !hit {
+			out = append(out, p)
+			return
+		}
+		lo, _ := p.Addr().Prefix(p.Bits() + 1)
+		hiAddr := lastAddr(lo).Next()
+		hi := netip.PrefixFrom(hiAddr, p.Bits()+1)
+		cut(lo.Masked())
+		cut(hi)
+	}
+	for _, p := range nets {
+		cut(p)
+	}
+	return out
+}
+
 func subnetOf(sub, sup netip.Prefix) bool {
 	return sup.Contains(sub.Addr()) && sub.Bits() >= sup.Bits()
 }

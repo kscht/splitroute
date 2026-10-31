@@ -59,7 +59,7 @@ func cmdValidate(cfg *Config) error {
 	for _, chk := range []struct {
 		name string
 		nets []netip.Prefix
-	}{{"RU", ruNets}, {"excluded-org", exNets}} {
+	}{{"RU", ruNets}, {"excluded", exNets}} {
 		captured := newlyCaptured(chk.nets, optNets, optAddrs, orgNets, orgAddrs)
 		if len(captured) > 0 {
 			ok = false

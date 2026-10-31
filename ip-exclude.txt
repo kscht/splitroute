@@ -1,0 +1,13 @@
+# Точечные исключения: эти адреса не пойдут через шлюз, даже если лежат в сетях организаций из orglist.txt.
+# Строка — IPv4, CIDR или имя хоста (разрешается при каждом fetch, все A-записи → /32). `# …` — комментарий.
+# ⚠ Адрес Cloudflare/CDN общий для многих сайтов: вырезанный адрес уйдёт мимо шлюза и для них.
+
+# kimi.ai (Moonshot AI)
+kimi.ai                 # BytePlus (byteplus.com — уже в orglist-exclude.txt)
+www.kimi.ai             # Cloudflare
+kimi.com                # volcddos → China Telecom
+www.kimi.com            # Cloudflare
+kimi.moonshot.cn        # volcddos → China Telecom
+api.moonshot.ai         # Cloudflare (API)
+platform.moonshot.ai    # Cloudflare (консоль API)
+statics.moonshot.cn     # bytedance.com (статика)

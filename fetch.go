@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"net/netip"
 	"os"
@@ -18,7 +19,7 @@ const (
 	cacheDir    = ".cache"
 	dbCacheFile = ".cache/country_asn.json.gz"
 	ruCacheFile = ".cache/ru_networks.txt"
-	exCacheFile = ".cache/excluded_networks.txt" // сети организаций из exclude_org_list
+	exCacheFile = ".cache/excluded_networks.txt" // сети из exclude_org_list + адреса из exclude_ip_list
 	cacheTTL    = 24 * time.Hour
 	ipinfoURL   = "https://ipinfo.io/data/free/country_asn.json.gz"
 	httpTimeout = 15 * time.Minute
@@ -72,6 +73,17 @@ func cmdFetch(cfg *Config) error {
 	log.Printf("found %d org CIDRs, %d RU CIDRs, %d excluded CIDRs", len(orgNets), len(ruNets), len(exNets))
 	if len(exNets) == 0 && len(excl) > 0 {
 		log.Printf("warning: ни одной сети исключённых организаций не найдено — проверь as_domain в %s", cfg.Files.ExcludeList)
+	}
+
+	if cfg.Files.ExcludeIPs != "" {
+		points, err := loadExcludeIPs(cfg.Files.ExcludeIPs)
+		if err != nil {
+			return err
+		}
+		before := len(orgNets)
+		orgNets = subtractNets(orgNets, points) // точечно — даже из сетей организаций основного списка
+		exNets = append(exNets, points...)      // и агрегация их обратно не захватит
+		log.Printf("excluded IPs: %d (%s); org CIDRs %d → %d", len(points), cfg.Files.ExcludeIPs, before, len(orgNets))
 	}
 
 	if err := writeNets(cfg.Files.Networks, orgNets); err != nil {
@@ -155,6 +167,55 @@ func loadOrgList(path string) (map[string]bool, error) {
 		}
 	}
 	return orgs, sc.Err()
+}
+
+// loadExcludeIPs читает список точечных исключений: IP, CIDR или имя хоста (разрешается сейчас, все A-записи).
+// Имя, которое не разрешилось, — предупреждение, не ошибка: ночной пересчёт не должен падать из-за DNS.
+func loadExcludeIPs(path string) ([]netip.Prefix, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	var out []netip.Prefix
+	sc := bufio.NewScanner(f)
+	for sc.Scan() {
+		line := sc.Text()
+		if i := strings.IndexByte(line, '#'); i >= 0 {
+			line = line[:i]
+		}
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		if p, err := netip.ParsePrefix(line); err == nil {
+			if p.Addr().Is4() {
+				out = append(out, p.Masked())
+			}
+			continue
+		}
+		if a, err := netip.ParseAddr(line); err == nil {
+			if a.Is4() {
+				out = append(out, netip.PrefixFrom(a, 32))
+			}
+			continue
+		}
+		ips, err := net.LookupIP(line)
+		if err != nil {
+			log.Printf("warning: %s не разрешилось (%v) — пропускаю", line, err)
+			continue
+		}
+		var got []string
+		for _, ip := range ips {
+			if a, ok := netip.AddrFromSlice(ip.To4()); ok && ip.To4() != nil {
+				out = append(out, netip.PrefixFrom(a, 32))
+				got = append(got, a.String())
+			}
+		}
+		log.Printf("  %s → %s", line, strings.Join(got, " "))
+	}
+	return out, sc.Err()
 }
 
 func parseDB(orgs, excl map[string]bool) (orgNets, ruNets, exNets []netip.Prefix, err error) {

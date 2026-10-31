@@ -18,6 +18,8 @@ config.example.toml  — шаблон конфига
 orglist.txt          — список доменов организаций (as_domain из ipinfo)
 orglist-exclude.txt  — организации, чьи сети, как RU, агрегация не захватывает (`# …` — комментарии); ключ exclude_org_list,
                        не задан — этот файл, если есть; домен в обоих списках — ошибка fetch
+ip-exclude.txt       — точечные исключения: IPv4/CIDR/имя хоста (разрешается на fetch); вырезаются из org-сетей
+                       (`subtractNets`) и добавляются к «защищённым»; ключ exclude_ip_list, не задан — этот файл
 optimize_test.go     — тесты оптимизатора на синтетике (go test -mod=vendor ./...)
 install.sh           — поставить Go (если нет) и собрать/установить бинарник (Linux)
 Makefile             — build (с vendor) / install
@@ -28,7 +30,7 @@ vendor/              — вендоренные зависимости, сбор
 Промежуточные файлы в `.cache/` (gitignored):
 - `country_asn.json.gz` — база ipinfo (TTL 24 ч)
 - `ru_networks.txt` — RU-сети, нужны оптимизатору
-- `excluded_networks.txt` — сети организаций из exclude-списка (оптимизатор и validate складывают их с RU в «защищённые»)
+- `excluded_networks.txt` — сети организаций из orglist-exclude.txt и адреса из ip-exclude.txt (оптимизатор и validate складывают их с RU в «защищённые»)
 
 ## Команды
 

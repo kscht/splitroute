@@ -32,7 +32,7 @@ func cmdLookup(cfg *Config, ipStr string) error {
 		if exNets, err := readNets(exCacheFile); err == nil {
 			for _, n := range exNets {
 				if n.Contains(addr) {
-					ex = fmt.Sprintf("  (исключённая организация: %s)", n)
+					ex = fmt.Sprintf("  (исключено: %s)", n)
 					break
 				}
 			}

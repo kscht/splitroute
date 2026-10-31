@@ -20,6 +20,7 @@ type APIConfig struct {
 type FilesConfig struct {
 	OrgList      string `toml:"org_list"`
 	ExcludeList  string `toml:"exclude_org_list"` // организации, чьи сети, как и RU, не захватываются агрегацией
+	ExcludeIPs   string `toml:"exclude_ip_list"`  // адреса, сети, имена хостов — вырезаются и из сетей организаций
 	Networks     string `toml:"networks_output"`
 	NetworksCIDR string `toml:"networks_cidr_output"`
 	Optimized    string `toml:"optimized_output"`
@@ -27,7 +28,10 @@ type FilesConfig struct {
 	CIDR         string `toml:"cidr_output"`
 }
 
-const defaultExcludeList = "orglist-exclude.txt"
+const (
+	defaultExcludeList = "orglist-exclude.txt"
+	defaultExcludeIPs  = "ip-exclude.txt"
+)
 
 type RoutingConfig struct {
 	GatewayIP   string `toml:"gateway_ip"`
@@ -45,6 +49,11 @@ func loadConfig(path string) (*Config, error) {
 	if cfg.Files.ExcludeList == "" {
 		if _, err := os.Stat(defaultExcludeList); err == nil {
 			cfg.Files.ExcludeList = defaultExcludeList
+		}
+	}
+	if cfg.Files.ExcludeIPs == "" {
+		if _, err := os.Stat(defaultExcludeIPs); err == nil {
+			cfg.Files.ExcludeIPs = defaultExcludeIPs
 		}
 	}
 	return &cfg, nil
