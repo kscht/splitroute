@@ -27,6 +27,17 @@ func cmdLookup(cfg *Config, ipStr string) error {
 		fmt.Printf("HIT  %s  →  %s\n", addr, nets[idx])
 		return nil
 	}
-	fmt.Printf("MISS %s\n", addr)
+	ex := ""
+	if cfg.Files.ExcludeList != "" {
+		if exNets, err := readNets(exCacheFile); err == nil {
+			for _, n := range exNets {
+				if n.Contains(addr) {
+					ex = fmt.Sprintf("  (исключённая организация: %s)", n)
+					break
+				}
+			}
+		}
+	}
+	fmt.Printf("MISS %s%s\n", addr, ex)
 	return nil
 }

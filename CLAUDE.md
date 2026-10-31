@@ -16,6 +16,9 @@ lookup.go            — найти, каким optimized-CIDR покрыт IP
 config.toml          — конфиг (gitignored, содержит токен)
 config.example.toml  — шаблон конфига
 orglist.txt          — список доменов организаций (as_domain из ipinfo)
+orglist-exclude.txt  — организации, чьи сети, как RU, агрегация не захватывает (`# …` — комментарии); ключ exclude_org_list,
+                       не задан — этот файл, если есть; домен в обоих списках — ошибка fetch
+optimize_test.go     — тесты оптимизатора на синтетике (go test -mod=vendor ./...)
 install.sh           — поставить Go (если нет) и собрать/установить бинарник (Linux)
 Makefile             — build (с vendor) / install
 private/             — личные утилиты (deploy-orglist.sh и т.п.), зашифрованы git-crypt; `git crypt unlock` любым из YubiKey
@@ -25,6 +28,7 @@ vendor/              — вендоренные зависимости, сбор
 Промежуточные файлы в `.cache/` (gitignored):
 - `country_asn.json.gz` — база ipinfo (TTL 24 ч)
 - `ru_networks.txt` — RU-сети, нужны оптимизатору
+- `excluded_networks.txt` — сети организаций из exclude-списка (оптимизатор и validate складывают их с RU в «защищённые»)
 
 ## Команды
 
@@ -52,7 +56,8 @@ go build -o splitroute .
    - `expandAll` — расширить каждую сеть до `targetBits`, если не захватывает RU/private
    - `collapse` — итеративно объединять соседние сети-сиблинги до стабилизации
 
-Проверка захвата RU (`newRU` / `newRUMerge`): binary search по первому адресу кандидатов, затем `subnetOf` для точной проверки.
+Проверка захвата «защищённых» сетей — RU + исключённые организации (`newProtected` / `newProtectedMerge`): binary search по
+первому адресу кандидатов, затем `subnetOf` для точной проверки. Запрещён только новый захват: исходные org-сети не урезаются.
 
 ## Форматы файлов
 
@@ -75,6 +80,7 @@ token = "..."
 
 [files]
 org_list             = "orglist.txt"
+exclude_org_list     = "orglist-exclude.txt"
 networks_output      = "networks.txt"
 networks_cidr_output = ""          # сырые CIDRs до оптимизации; пусто — не записывать
 optimized_output     = "optimized_networks.txt"

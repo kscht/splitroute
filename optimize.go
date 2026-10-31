@@ -41,12 +41,18 @@ func cmdOptimize(cfg *Config) error {
 	if err != nil {
 		return fmt.Errorf("load ru: %w", err)
 	}
-	log.Printf("org: %d, ru: %d", len(orgNets), len(ruNets))
+	exNets, err := loadExcluded(cfg)
+	if err != nil {
+		return err
+	}
+	log.Printf("org: %d, ru: %d, excluded: %d", len(orgNets), len(ruNets), len(exNets))
 
-	sortNets(ruNets)
+	// RU и исключённые организации для агрегации одно и то же: захватывать их заново нельзя.
+	protected := append(append([]netip.Prefix{}, ruNets...), exNets...)
+	sortNets(protected)
 
 	log.Println("optimizing...")
-	result := optimizeNets(orgNets, ruNets)
+	result := optimizeNets(orgNets, protected)
 
 	ratio := float64(len(orgNets)) / float64(max(1, len(result)))
 	log.Printf("result: %d → %d (%.1fx)", len(orgNets), len(result), ratio)
@@ -56,6 +62,18 @@ func cmdOptimize(cfg *Config) error {
 	}
 	log.Printf("saved → %s", cfg.Files.Optimized)
 	return nil
+}
+
+// loadExcluded читает сети организаций из exclude_org_list (их пишет fetch). Список не задан — исключений нет.
+func loadExcluded(cfg *Config) ([]netip.Prefix, error) {
+	if cfg.Files.ExcludeList == "" {
+		return nil, nil
+	}
+	nets, err := readNets(exCacheFile)
+	if err != nil {
+		return nil, fmt.Errorf("load excluded (%s задан — сначала fetch): %w", cfg.Files.ExcludeList, err)
+	}
+	return nets, nil
 }
 
 func readNets(path string) ([]netip.Prefix, error) {
@@ -81,12 +99,12 @@ func readNets(path string) ([]netip.Prefix, error) {
 	return nets, sc.Err()
 }
 
-func optimizeNets(orgNets, ruNets []netip.Prefix) []netip.Prefix {
+func optimizeNets(orgNets, protected []netip.Prefix) []netip.Prefix {
 	nets := dedupe(orgNets)
 	// Progressively expand to larger prefixes, then collapse at each step.
 	for targetBits := 11; targetBits <= 22; targetBits++ {
-		nets = expandAll(nets, targetBits, ruNets)
-		nets = collapse(nets, ruNets)
+		nets = expandAll(nets, targetBits, protected)
+		nets = collapse(nets, protected)
 	}
 	return nets
 }
@@ -107,15 +125,15 @@ func dedupe(nets []netip.Prefix) []netip.Prefix {
 	return out
 }
 
-// expandAll tries to expand each prefix to targetBits if no RU or private IPs
-// would be newly captured.
-func expandAll(nets []netip.Prefix, targetBits int, ruNets []netip.Prefix) []netip.Prefix {
+// expandAll tries to expand each prefix to targetBits if no protected (RU or excluded organizations)
+// or private IPs would be newly captured.
+func expandAll(nets []netip.Prefix, targetBits int, protected []netip.Prefix) []netip.Prefix {
 	out := make([]netip.Prefix, 0, len(nets))
 	for _, p := range nets {
 		if p.Bits() > targetBits {
 			sup, _ := p.Addr().Prefix(targetBits)
 			sup = sup.Masked()
-			if !overlapsPrivate(sup) && !newRU(p, sup, ruNets) {
+			if !overlapsPrivate(sup) && !newProtected(p, sup, protected) {
 				out = append(out, sup)
 				continue
 			}
@@ -126,10 +144,10 @@ func expandAll(nets []netip.Prefix, targetBits int, ruNets []netip.Prefix) []net
 }
 
 // collapse iteratively merges adjacent sibling prefixes until stable.
-func collapse(nets []netip.Prefix, ruNets []netip.Prefix) []netip.Prefix {
+func collapse(nets []netip.Prefix, protected []netip.Prefix) []netip.Prefix {
 	nets = dedupe(nets)
 	for {
-		next := mergePairs(nets, ruNets)
+		next := mergePairs(nets, protected)
 		next = dedupe(next)
 		if len(next) == len(nets) {
 			return next
@@ -139,7 +157,7 @@ func collapse(nets []netip.Prefix, ruNets []netip.Prefix) []netip.Prefix {
 }
 
 // mergePairs does one pass of merging adjacent same-size sibling prefixes.
-func mergePairs(nets []netip.Prefix, ruNets []netip.Prefix) []netip.Prefix {
+func mergePairs(nets []netip.Prefix, protected []netip.Prefix) []netip.Prefix {
 	out := make([]netip.Prefix, 0, len(nets))
 	i := 0
 	for i < len(nets) {
@@ -150,7 +168,7 @@ func mergePairs(nets []netip.Prefix, ruNets []netip.Prefix) []netip.Prefix {
 				sup = sup.Masked()
 				if sup.Contains(a.Addr()) && sup.Contains(b.Addr()) &&
 					!overlapsPrivate(sup) &&
-					!newRUMerge(a, b, sup, ruNets) {
+					!newProtectedMerge(a, b, sup, protected) {
 					out = append(out, sup)
 					i += 2
 					continue
@@ -163,13 +181,13 @@ func mergePairs(nets []netip.Prefix, ruNets []netip.Prefix) []netip.Prefix {
 	return out
 }
 
-// newRU reports whether expanding from→to newly captures any RU network.
-func newRU(from, to netip.Prefix, ruNets []netip.Prefix) bool {
+// newProtected reports whether expanding from→to newly captures any protected network (RU or excluded org).
+func newProtected(from, to netip.Prefix, protected []netip.Prefix) bool {
 	first, last := to.Addr(), lastAddr(to)
-	idx := sort.Search(len(ruNets), func(i int) bool {
-		return ruNets[i].Addr().Compare(first) >= 0
+	idx := sort.Search(len(protected), func(i int) bool {
+		return protected[i].Addr().Compare(first) >= 0
 	})
-	for _, ru := range ruNets[idx:] {
+	for _, ru := range protected[idx:] {
 		if ru.Addr().Compare(last) > 0 {
 			break
 		}
@@ -180,13 +198,13 @@ func newRU(from, to netip.Prefix, ruNets []netip.Prefix) bool {
 	return false
 }
 
-// newRUMerge reports whether merging a+b→sup newly captures any RU network.
-func newRUMerge(a, b, sup netip.Prefix, ruNets []netip.Prefix) bool {
+// newProtectedMerge reports whether merging a+b→sup newly captures any protected network.
+func newProtectedMerge(a, b, sup netip.Prefix, protected []netip.Prefix) bool {
 	first, last := sup.Addr(), lastAddr(sup)
-	idx := sort.Search(len(ruNets), func(i int) bool {
-		return ruNets[i].Addr().Compare(first) >= 0
+	idx := sort.Search(len(protected), func(i int) bool {
+		return protected[i].Addr().Compare(first) >= 0
 	})
-	for _, ru := range ruNets[idx:] {
+	for _, ru := range protected[idx:] {
 		if ru.Addr().Compare(last) > 0 {
 			break
 		}

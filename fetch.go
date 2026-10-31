@@ -18,6 +18,7 @@ const (
 	cacheDir    = ".cache"
 	dbCacheFile = ".cache/country_asn.json.gz"
 	ruCacheFile = ".cache/ru_networks.txt"
+	exCacheFile = ".cache/excluded_networks.txt" // сети организаций из exclude_org_list
 	cacheTTL    = 24 * time.Hour
 	ipinfoURL   = "https://ipinfo.io/data/free/country_asn.json.gz"
 	httpTimeout = 15 * time.Minute
@@ -50,16 +51,36 @@ func cmdFetch(cfg *Config) error {
 	}
 	log.Printf("organizations: %d", len(orgs))
 
-	orgNets, ruNets, err := parseDB(orgs)
+	excl := map[string]bool{}
+	if cfg.Files.ExcludeList != "" {
+		if excl, err = loadOrgList(cfg.Files.ExcludeList); err != nil {
+			return err
+		}
+		for d := range excl {
+			if orgs[d] {
+				return fmt.Errorf("%s есть и в %s, и в %s — организация либо маршрутизируется, либо исключается",
+					d, cfg.Files.OrgList, cfg.Files.ExcludeList)
+			}
+		}
+		log.Printf("excluded organizations: %d (%s)", len(excl), cfg.Files.ExcludeList)
+	}
+
+	orgNets, ruNets, exNets, err := parseDB(orgs, excl)
 	if err != nil {
 		return fmt.Errorf("parse: %w", err)
 	}
-	log.Printf("found %d org CIDRs, %d RU CIDRs", len(orgNets), len(ruNets))
+	log.Printf("found %d org CIDRs, %d RU CIDRs, %d excluded CIDRs", len(orgNets), len(ruNets), len(exNets))
+	if len(exNets) == 0 && len(excl) > 0 {
+		log.Printf("warning: ни одной сети исключённых организаций не найдено — проверь as_domain в %s", cfg.Files.ExcludeList)
+	}
 
 	if err := writeNets(cfg.Files.Networks, orgNets); err != nil {
 		return err
 	}
 	if err := writeNets(ruCacheFile, ruNets); err != nil {
+		return err
+	}
+	if err := writeNets(exCacheFile, exNets); err != nil { // пустой файл — исключений нет (а не «fetch не запускали»)
 		return err
 	}
 	log.Printf("saved → %s", cfg.Files.Networks)
@@ -125,23 +146,27 @@ func loadOrgList(path string) (map[string]bool, error) {
 	orgs := make(map[string]bool)
 	sc := bufio.NewScanner(f)
 	for sc.Scan() {
-		if line := strings.TrimSpace(strings.ToLower(sc.Text())); line != "" {
+		line := sc.Text()
+		if i := strings.IndexByte(line, '#'); i >= 0 {
+			line = line[:i] // комментарии: «byteplus.com  # kimi.ai»
+		}
+		if line = strings.TrimSpace(strings.ToLower(line)); line != "" {
 			orgs[line] = true
 		}
 	}
 	return orgs, sc.Err()
 }
 
-func parseDB(orgs map[string]bool) (orgNets, ruNets []netip.Prefix, err error) {
+func parseDB(orgs, excl map[string]bool) (orgNets, ruNets, exNets []netip.Prefix, err error) {
 	f, err := os.Open(dbCacheFile)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	defer f.Close()
 
 	gz, err := gzip.NewReader(f)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	defer gz.Close()
 
@@ -164,14 +189,18 @@ func parseDB(orgs map[string]bool) (orgNets, ruNets []netip.Prefix, err error) {
 		if err != nil {
 			continue
 		}
-		if orgs[strings.ToLower(rec.ASDomain)] {
+		dom := strings.ToLower(rec.ASDomain)
+		if orgs[dom] {
 			orgNets = append(orgNets, cidrs...)
+		}
+		if excl[dom] {
+			exNets = append(exNets, cidrs...)
 		}
 		if rec.Country == "RU" {
 			ruNets = append(ruNets, cidrs...)
 		}
 	}
-	return orgNets, ruNets, sc.Err()
+	return orgNets, ruNets, exNets, sc.Err()
 }
 
 func rangeToCIDRs(startStr, endStr string) ([]netip.Prefix, error) {
