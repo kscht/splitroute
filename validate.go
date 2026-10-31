@@ -21,11 +21,7 @@ func cmdValidate(cfg *Config) error {
 	if err != nil {
 		return fmt.Errorf("load ru: %w", err)
 	}
-	exNets, err := loadExcluded(cfg)
-	if err != nil {
-		return err
-	}
-	log.Printf("org: %d, optimized: %d, ru: %d, excluded: %d", len(orgNets), len(optNets), len(ruNets), len(exNets))
+	log.Printf("org: %d, optimized: %d, ru: %d", len(orgNets), len(optNets), len(ruNets))
 
 	sortNets(optNets)
 	sortNets(orgNets)
@@ -55,21 +51,32 @@ func cmdValidate(cfg *Config) error {
 		log.Printf("OK: all %d org networks covered", len(orgNets))
 	}
 
-	// 2–3. Ни один optimized-CIDR не должен захватывать новые RU-сети и сети исключённых организаций.
-	for _, chk := range []struct {
-		name string
-		nets []netip.Prefix
-	}{{"RU", ruNets}, {"excluded", exNets}} {
-		captured := newlyCaptured(chk.nets, optNets, optAddrs, orgNets, orgAddrs)
-		if len(captured) > 0 {
-			ok = false
-			log.Printf("FAIL: %d %s networks newly captured", len(captured), chk.name)
-			for _, n := range captured[:min(5, len(captured))] {
-				log.Printf("  new %s: %s", chk.name, n)
-			}
-		} else {
-			log.Printf("OK: no new %s networks captured", chk.name)
+	// 2. Ни один optimized-CIDR не должен захватывать новые RU-сети.
+	var newRU []netip.Prefix
+	for _, ru := range ruNets {
+		// Есть ли optimized, содержащий эту RU-сеть?
+		idx := sort.Search(len(optNets), func(i int) bool {
+			return optAddrs[i].Compare(ru.Addr()) > 0
+		}) - 1
+		if idx < 0 || !subnetOf(ru, optNets[idx]) {
+			continue
 		}
+		// Была ли она уже покрыта в оригинальных org-сетях?
+		idx2 := sort.Search(len(orgNets), func(i int) bool {
+			return orgAddrs[i].Compare(ru.Addr()) > 0
+		}) - 1
+		if idx2 < 0 || !subnetOf(ru, orgNets[idx2]) {
+			newRU = append(newRU, ru)
+		}
+	}
+	if len(newRU) > 0 {
+		ok = false
+		log.Printf("FAIL: %d RU networks newly captured", len(newRU))
+		for _, n := range newRU[:min(5, len(newRU))] {
+			log.Printf("  new RU: %s", n)
+		}
+	} else {
+		log.Printf("OK: no new RU networks captured")
 	}
 
 	if !ok {
@@ -77,26 +84,6 @@ func cmdValidate(cfg *Config) error {
 	}
 	log.Println("validation passed")
 	return nil
-}
-
-// newlyCaptured — сети из nets, покрытые оптимизированным набором, но не покрытые исходными org-сетями.
-func newlyCaptured(nets, optNets []netip.Prefix, optAddrs []netip.Addr, orgNets []netip.Prefix, orgAddrs []netip.Addr) []netip.Prefix {
-	var out []netip.Prefix
-	for _, n := range nets {
-		idx := sort.Search(len(optNets), func(i int) bool {
-			return optAddrs[i].Compare(n.Addr()) > 0
-		}) - 1
-		if idx < 0 || !subnetOf(n, optNets[idx]) {
-			continue
-		}
-		idx2 := sort.Search(len(orgNets), func(i int) bool {
-			return orgAddrs[i].Compare(n.Addr()) > 0
-		}) - 1
-		if idx2 < 0 || !subnetOf(n, orgNets[idx2]) {
-			out = append(out, n)
-		}
-	}
-	return out
 }
 
 func addrs(nets []netip.Prefix) []netip.Addr {

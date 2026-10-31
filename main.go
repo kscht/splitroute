@@ -19,19 +19,12 @@ type APIConfig struct {
 
 type FilesConfig struct {
 	OrgList      string `toml:"org_list"`
-	ExcludeList  string `toml:"exclude_org_list"` // организации, чьи сети, как и RU, не захватываются агрегацией
-	ExcludeIPs   string `toml:"exclude_ip_list"`  // адреса, сети, имена хостов — вырезаются и из сетей организаций
 	Networks     string `toml:"networks_output"`
 	NetworksCIDR string `toml:"networks_cidr_output"`
 	Optimized    string `toml:"optimized_output"`
 	Routes       string `toml:"routes_output"`
 	CIDR         string `toml:"cidr_output"`
 }
-
-const (
-	defaultExcludeList = "orglist-exclude.txt"
-	defaultExcludeIPs  = "ip-exclude.txt"
-)
 
 type RoutingConfig struct {
 	GatewayIP   string `toml:"gateway_ip"`
@@ -43,18 +36,6 @@ func loadConfig(path string) (*Config, error) {
 	var cfg Config
 	if _, err := toml.DecodeFile(path, &cfg); err != nil {
 		return nil, fmt.Errorf("config: %w", err)
-	}
-	// Ключ не задан, но рядом лежит orglist-exclude.txt — берём его: узлам для включения исключений достаточно
-	// положить файл, править их config.toml не нужно.
-	if cfg.Files.ExcludeList == "" {
-		if _, err := os.Stat(defaultExcludeList); err == nil {
-			cfg.Files.ExcludeList = defaultExcludeList
-		}
-	}
-	if cfg.Files.ExcludeIPs == "" {
-		if _, err := os.Stat(defaultExcludeIPs); err == nil {
-			cfg.Files.ExcludeIPs = defaultExcludeIPs
-		}
 	}
 	return &cfg, nil
 }

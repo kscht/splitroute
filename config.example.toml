@@ -3,8 +3,6 @@ token = "your_ipinfo_token_here"
 
 [files]
 org_list         = "orglist.txt"
-exclude_ip_list  = "ip-exclude.txt"        # точечно: IP, CIDR, имена хостов — вырезаются даже из сетей организаций (не задан — этот файл, если есть)
-exclude_org_list = "orglist-exclude.txt"   # организации, которые, как и RU, не захватываются агрегацией (не задан — берётся этот файл, если он есть)
 networks_output      = "networks.txt"
 networks_cidr_output = ""                    # чистые CIDRs до оптимизации (пусто — не записывать)
 optimized_output     = "optimized_networks.txt"
